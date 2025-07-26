@@ -83,6 +83,10 @@
       display: block;
       color: #0d47a1;
     }
+
+    small {
+      color: #555;
+    }
   </style>
 </head>
 <body>
@@ -122,7 +126,7 @@
       alert("Data berhasil dimuat dari GitHub!");
     } catch (err) {
       alert("Gagal memuat data dari GitHub.");
-      console.error(err);
+      console.error("Error:", err);
     }
   }
 
@@ -175,12 +179,22 @@
 
   const searchHargaPromoDebounced = debounce(function () {
     const keyword = document.getElementById("searchHargaPromo").value.toLowerCase();
-    searchAndRender(keyword, "resultHargaPromo", (item, i) => `
-      <strong>${i}. ${item.description || "Tanpa Nama"}</strong>
-      PLU: ${item.plu || "-"}<br>
-      Harga: Rp${item.current_price || "0"}<br>
-      Promo: ${item.promo || "-"}
-    `);
+    searchAndRender(keyword, "resultHargaPromo", (item, i) => {
+      const start = item.start_date ? new Date(item.start_date) : null;
+      const end = item.end_date ? new Date(item.end_date) : null;
+      const now = new Date();
+
+      const isInPromo = start && end && now >= start && now <= end;
+      const promoLabel = item.promo && isInPromo ? item.promo : "Tidak Aktif";
+
+      return `
+        <strong>${i}. ${item.description || "Tanpa Nama"}</strong>
+        PLU: ${item.plu || "-"}<br>
+        Harga: Rp${item.current_price || "0"}<br>
+        Promo: ${promoLabel}<br>
+        <small>Periode: ${item.start_date || "-"} s/d ${item.end_date || "-"}</small>
+      `;
+    });
   }, 300);
 
   const searchStokDebounced = debounce(function () {
