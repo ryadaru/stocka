@@ -4,70 +4,134 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FHPIM</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
+      font-family: sans-serif;
       margin: 0;
-      font-family: Arial, sans-serif;
-      background-color: #f5f5f5;
+      background: #f9f9f9;
       color: #333;
     }
 
     header {
-      background-color: #1e88e5;
-      padding: 20px;
-      text-align: center;
+      background-color: #1976d2;
       color: white;
+      text-align: center;
+      padding: 15px;
       font-size: 24px;
-      font-weight: bold;
     }
 
-    .menu {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      padding: 20px;
-      max-width: 400px;
+    .container {
+      padding: 15px;
+      max-width: 480px;
       margin: auto;
     }
 
     .menu-button {
-      background-color: #ffffff;
-      border: 2px solid #1e88e5;
-      color: #1e88e5;
-      padding: 15px;
-      text-align: center;
-      font-size: 18px;
-      border-radius: 8px;
+      width: 100%;
+      margin: 10px 0;
+      padding: 12px;
+      font-size: 16px;
+      background-color: white;
+      color: #1976d2;
+      border: 2px solid #1976d2;
+      border-radius: 6px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: 0.2s;
     }
 
     .menu-button:hover {
-      background-color: #1e88e5;
+      background-color: #1976d2;
       color: white;
     }
 
-    @media (max-width: 480px) {
-      .menu-button {
-        font-size: 16px;
-        padding: 12px;
-      }
+    input[type="file"], input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
 
-      header {
-        font-size: 20px;
-        padding: 15px;
-      }
+    .result {
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #fff;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+
+    .item {
+      margin-bottom: 10px;
+      padding: 10px;
+      background: #e3f2fd;
+      border-radius: 4px;
+    }
+
+    .item strong {
+      display: block;
+      color: #0d47a1;
     }
   </style>
 </head>
 <body>
 
   <header>FHPIM</header>
+  <div class="container">
+    <input type="file" id="excelFile" accept=".xlsx, .xls" />
+    <input type="text" id="searchInput" placeholder="Cari berdasarkan PLU atau Nama Produk" oninput="handleSearch()" />
 
-  <div class="menu">
-    <div class="menu-button" onclick="alert('Fitur Cek Harga')">Cek Harga & Promo</div>
-    <div class="menu-button" onclick="alert('Fitur Cek Stok')">Cek Stok</div>
+    <div class="result" id="resultBox"></div>
   </div>
+
+  <script>
+    let masterData = [];
+
+    document.getElementById('excelFile').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        masterData = XLSX.utils.sheet_to_json(worksheet);
+        alert('Data berhasil dimuat!');
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+
+    function handleSearch() {
+      const keyword = document.getElementById('searchInput').value.toLowerCase();
+      const resultBox = document.getElementById('resultBox');
+      resultBox.innerHTML = "";
+
+      if (!keyword || masterData.length === 0) return;
+
+      const filtered = masterData.filter(item => {
+        const plu = (item.plu || "").toString().toLowerCase();
+        const desc = (item.description || "").toLowerCase();
+        return plu.includes(keyword) || desc.includes(keyword);
+      });
+
+      if (filtered.length === 0) {
+        resultBox.innerHTML = "<p>Tidak ditemukan.</p>";
+      } else {
+        filtered.forEach(item => {
+          const div = document.createElement("div");
+          div.className = "item";
+          div.innerHTML = `
+            <strong>${item.description || "Tanpa Nama"}</strong>
+            PLU: ${item.plu || "-"}<br>
+            Harga: Rp${item.current_price || "0"}<br>
+            Promo: ${item.promo || "-"}
+          `;
+          resultBox.appendChild(div);
+        });
+      }
+    }
+  </script>
 
 </body>
 </html>
