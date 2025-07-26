@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FHPIM</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FHPIM - Cek Harga & Stok</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
       font-family: sans-serif;
       margin: 0;
-      background: #f9f9f9;
+      background: #f4f4f4;
       color: #333;
     }
 
@@ -18,31 +18,42 @@
       color: white;
       text-align: center;
       padding: 15px;
-      font-size: 24px;
+      font-size: 20px;
     }
 
     .container {
-      padding: 15px;
       max-width: 480px;
       margin: auto;
+      padding: 10px;
     }
 
-    .menu-button {
-      width: 100%;
+    .tab-buttons {
+      display: flex;
       margin: 10px 0;
-      padding: 12px;
-      font-size: 16px;
-      background-color: white;
-      color: #1976d2;
-      border: 2px solid #1976d2;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: 0.2s;
     }
 
-    .menu-button:hover {
+    .tab-button {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      background-color: white;
+      border: 1px solid #1976d2;
+      color: #1976d2;
+      cursor: pointer;
+    }
+
+    .tab-button.active {
       background-color: #1976d2;
       color: white;
+    }
+
+    .tab-content {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .tab-content.active {
+      display: block;
     }
 
     input[type="file"], input[type="text"] {
@@ -50,6 +61,7 @@
       padding: 10px;
       margin: 10px 0;
       font-size: 16px;
+      box-sizing: border-box;
     }
 
     .result {
@@ -75,63 +87,115 @@
 </head>
 <body>
 
-  <header>FHPIM</header>
-  <div class="container">
-    <input type="file" id="excelFile" accept=".xlsx, .xls" />
-    <input type="text" id="searchInput" placeholder="Cari berdasarkan PLU atau Nama Produk" oninput="handleSearch()" />
+<header>FHPIM - Cek Harga & Stok</header>
 
-    <div class="result" id="resultBox"></div>
+<div class="container">
+  <input type="file" id="excelFile" accept=".csv, .xlsx, .xls" />
+
+  <div class="tab-buttons">
+    <div class="tab-button active" onclick="switchTab('hargaPromo')">Harga & Promo</div>
+    <div class="tab-button" onclick="switchTab('stok')">Stok</div>
   </div>
 
-  <script>
-    let masterData = [];
+  <div class="tab-content active" id="tab-hargaPromo">
+    <input type="text" id="searchHargaPromo" placeholder="Cari PLU atau Nama Produk" />
+    <div class="result" id="resultHargaPromo"></div>
+  </div>
 
-    document.getElementById('excelFile').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
+  <div class="tab-content" id="tab-stok">
+    <input type="text" id="searchStok" placeholder="Cari PLU atau Nama Produk" />
+    <div class="result" id="resultStok"></div>
+  </div>
+</div>
 
-      reader.onload = function (e) {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        masterData = XLSX.utils.sheet_to_json(worksheet);
-        alert('Data berhasil dimuat!');
-      };
+<script>
+  let masterData = [];
 
-      reader.readAsArrayBuffer(file);
+  document.getElementById('excelFile').addEventListener('change', function (e) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function (e) {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      masterData = XLSX.utils.sheet_to_json(worksheet);
+      alert('Data berhasil dimuat!');
+    };
+
+    reader.readAsArrayBuffer(file);
+  });
+
+  function switchTab(tab) {
+    const buttons = document.querySelectorAll(".tab-button");
+    const tabs = document.querySelectorAll(".tab-content");
+
+    buttons.forEach(btn => btn.classList.remove("active"));
+    tabs.forEach(tabContent => tabContent.classList.remove("active"));
+
+    document.querySelector(`.tab-button[onclick="switchTab('${tab}')"]`).classList.add("active");
+    document.getElementById(`tab-${tab}`).classList.add("active");
+  }
+
+  function debounce(func, delay) {
+    let timeout;
+    return function () {
+      const context = this;
+      const args = arguments;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+  }
+
+  function searchAndRender(keyword, containerId, renderFn) {
+    const resultBox = document.getElementById(containerId);
+    resultBox.innerHTML = "";
+
+    if (!keyword || masterData.length === 0) return;
+
+    const filtered = masterData.filter(item => {
+      const plu = (item.plu || "").toString().toLowerCase();
+      const desc = (item.description || "").toLowerCase();
+      return plu.includes(keyword) || desc.includes(keyword);
     });
 
-    function handleSearch() {
-      const keyword = document.getElementById('searchInput').value.toLowerCase();
-      const resultBox = document.getElementById('resultBox');
-      resultBox.innerHTML = "";
-
-      if (!keyword || masterData.length === 0) return;
-
-      const filtered = masterData.filter(item => {
-        const plu = (item.plu || "").toString().toLowerCase();
-        const desc = (item.description || "").toLowerCase();
-        return plu.includes(keyword) || desc.includes(keyword);
+    if (filtered.length === 0) {
+      resultBox.innerHTML = "<p>Tidak ditemukan.</p>";
+    } else {
+      filtered.forEach((item, index) => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerHTML = renderFn(item, index + 1);
+        resultBox.appendChild(div);
       });
-
-      if (filtered.length === 0) {
-        resultBox.innerHTML = "<p>Tidak ditemukan.</p>";
-      } else {
-        filtered.forEach(item => {
-          const div = document.createElement("div");
-          div.className = "item";
-          div.innerHTML = `
-            <strong>${item.description || "Tanpa Nama"}</strong>
-            PLU: ${item.plu || "-"}<br>
-            Harga: Rp${item.current_price || "0"}<br>
-            Promo: ${item.promo || "-"}
-          `;
-          resultBox.appendChild(div);
-        });
-      }
     }
-  </script>
+  }
+
+  // Harga & Promo
+  const searchHargaPromoDebounced = debounce(function () {
+    const keyword = document.getElementById("searchHargaPromo").value.toLowerCase();
+    searchAndRender(keyword, "resultHargaPromo", (item, i) => `
+      <strong>${i}. ${item.description || "Tanpa Nama"}</strong>
+      PLU: ${item.plu || "-"}<br>
+      Harga: Rp${item.current_price || "0"}<br>
+      Promo: ${item.promo || "-"}
+    `);
+  }, 300);
+
+  // Stok
+  const searchStokDebounced = debounce(function () {
+    const keyword = document.getElementById("searchStok").value.toLowerCase();
+    searchAndRender(keyword, "resultStok", (item, i) => `
+      <strong>${i}. ${item.description || "Tanpa Nama"}</strong>
+      PLU: ${item.plu || "-"}<br>
+      Stok: ${item.stock !== undefined ? item.stock : "-"}
+    `);
+  }, 300);
+
+  document.getElementById("searchHargaPromo").addEventListener("input", searchHargaPromoDebounced);
+  document.getElementById("searchStok").addEventListener("input", searchStokDebounced);
+</script>
 
 </body>
 </html>
