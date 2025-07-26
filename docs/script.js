@@ -33,12 +33,31 @@ function displayData(data) {
   });
 }
 
-document.getElementById('searchInput').addEventListener('input', e => {
+// Tidak display semua data, hanya saat user cari
+document.getElementById('searchInput').addEventListener('input', async e => {
   const keyword = e.target.value.toLowerCase();
-  const filtered = window.productData.filter(item =>
-    item.description.toLowerCase().includes(keyword)
-  );
-  displayData(filtered);
+  const response = await fetch('./data.csv');
+  const text = await response.text();
+  const rows = text.trim().split('\n').slice(1);
+
+  const filtered = rows.filter(row => {
+    const cells = row.split(',');
+    return cells[1].toLowerCase().includes(keyword); // search by description
+  });
+
+  const table = document.getElementById('dataTable');
+  table.innerHTML = "";
+
+  filtered.slice(0, 100).forEach(row => { // tampilkan max 100 hasil
+    const cells = row.split(',');
+    const html = `<tr>
+      <td>${cells[0]}</td>
+      <td>${cells[1]}</td>
+      <td>Rp ${parseInt(cells[2]).toLocaleString()}</td>
+      <td>${cells[3]}</td>
+    </tr>`;
+    table.innerHTML += html;
+  });
 });
 
 loadCSV();
