@@ -115,6 +115,17 @@
 <script>
   let masterData = [];
 
+  // Konversi serial number Excel ke tanggal DD/MM/YYYY
+  function excelDateToJSDate(serial) {
+    const utc_days = Math.floor(serial - 25569);
+    const utc_value = utc_days * 86400;
+    const date_info = new Date(utc_value * 1000);
+    const day = String(date_info.getDate()).padStart(2, '0');
+    const month = String(date_info.getMonth() + 1).padStart(2, '0');
+    const year = date_info.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
   async function loadExcelFromGithub() {
     try {
       const response = await fetch("data.xlsx");
@@ -180,11 +191,16 @@
   const searchHargaPromoDebounced = debounce(function () {
     const keyword = document.getElementById("searchHargaPromo").value.toLowerCase();
     searchAndRender(keyword, "resultHargaPromo", (item, i) => {
-      const start = item.start_date ? new Date(item.start_date) : null;
-      const end = item.end_date ? new Date(item.end_date) : null;
-      const now = new Date();
+      let start = item.start_date;
+      let end = item.end_date;
 
-      const isInPromo = start && end && now >= start && now <= end;
+      if (typeof start === "number") start = excelDateToJSDate(start);
+      if (typeof end === "number") end = excelDateToJSDate(end);
+
+      const now = new Date();
+      const startDateObj = new Date(start.split("/").reverse().join("-"));
+      const endDateObj = new Date(end.split("/").reverse().join("-"));
+      const isInPromo = start && end && now >= startDateObj && now <= endDateObj;
       const promoLabel = item.promo && isInPromo ? item.promo : "Tidak Aktif";
 
       return `
@@ -192,7 +208,7 @@
         PLU: ${item.plu || "-"}<br>
         Harga: Rp${item.current_price || "0"}<br>
         Promo: ${promoLabel}<br>
-        <small>Periode: ${item.start_date || "-"} s/d ${item.end_date || "-"}</small>
+        <small>Periode: ${start || "-"} s/d ${end || "-"}</small>
       `;
     });
   }, 300);
