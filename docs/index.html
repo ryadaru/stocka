@@ -56,7 +56,7 @@
       display: block;
     }
 
-    input[type="file"], input[type="text"] {
+    input[type="text"] {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
@@ -90,7 +90,7 @@
 <header>FHPIM - Cek Harga & Stok</header>
 
 <div class="container">
-  <input type="file" id="excelFile" accept=".csv, .xlsx, .xls" />
+  <p>Memuat data dari GitHub...</p>
 
   <div class="tab-buttons">
     <div class="tab-button active" onclick="switchTab('hargaPromo')">Harga & Promo</div>
@@ -111,21 +111,22 @@
 <script>
   let masterData = [];
 
-  document.getElementById('excelFile').addEventListener('change', function (e) {
-    const file = e.target.files[0];
-    const reader = new FileReader();
-
-    reader.onload = function (e) {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
+  async function loadExcelFromGithub() {
+    try {
+      const response = await fetch("data.xlsx");
+      const arrayBuffer = await response.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       masterData = XLSX.utils.sheet_to_json(worksheet);
-      alert('Data berhasil dimuat!');
-    };
+      alert("Data berhasil dimuat dari GitHub!");
+    } catch (err) {
+      alert("Gagal memuat data dari GitHub.");
+      console.error(err);
+    }
+  }
 
-    reader.readAsArrayBuffer(file);
-  });
+  loadExcelFromGithub();
 
   function switchTab(tab) {
     const buttons = document.querySelectorAll(".tab-button");
@@ -172,7 +173,6 @@
     }
   }
 
-  // Harga & Promo
   const searchHargaPromoDebounced = debounce(function () {
     const keyword = document.getElementById("searchHargaPromo").value.toLowerCase();
     searchAndRender(keyword, "resultHargaPromo", (item, i) => `
@@ -183,7 +183,6 @@
     `);
   }, 300);
 
-  // Stok
   const searchStokDebounced = debounce(function () {
     const keyword = document.getElementById("searchStok").value.toLowerCase();
     searchAndRender(keyword, "resultStok", (item, i) => `
