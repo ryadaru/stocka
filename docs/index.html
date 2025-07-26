@@ -217,31 +217,34 @@
   let codeReader;
 
   async function startScanner() {
-    const previewElem = document.getElementById('barcode-scanner');
-    const resultBox = document.getElementById('resultBarcode');
-    resultBox.innerHTML = "";
+  const previewElem = document.getElementById('barcode-scanner');
+  const resultBox = document.getElementById('resultBarcode');
+  resultBox.innerHTML = "";
 
-    if (!codeReader) {
-      codeReader = new ZXing.BrowserBarcodeReader();
-    }
-
-    try {
-      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-      if (devices.length === 0) {
-        previewElem.innerHTML = "<p>Tidak ada kamera terdeteksi.</p>";
-        return;
-      }
-
-      codeReader.decodeFromVideoDevice(devices[0].deviceId, 'barcode-scanner', (result, err) => {
-        if (result) {
-          const kode = result.getText();
-          showBarcodeResult(kode);
-        }
-      });
-    } catch (e) {
-      previewElem.innerHTML = "<p>Gagal mengakses kamera.</p>";
-    }
+  if (!codeReader) {
+    codeReader = new ZXing.BrowserMultiFormatReader();
   }
+
+  try {
+    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+    if (devices.length === 0) {
+      previewElem.innerHTML = "<p>Tidak ada kamera terdeteksi.</p>";
+      return;
+    }
+
+    const selectedDeviceId = devices[0].deviceId; // pakai kamera pertama
+    codeReader.decodeFromVideoDevice(selectedDeviceId, 'barcode-scanner', (result, err) => {
+      if (result) {
+        const kode = result.getText();
+        showBarcodeResult(kode);
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    previewElem.innerHTML = "<p>Gagal mengakses kamera. Pastikan izinnya diaktifkan dan pakai HTTPS/localhost.</p>";
+  }
+}
+
 
   function stopScanner() {
     if (codeReader) {
