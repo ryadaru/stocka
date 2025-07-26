@@ -2,23 +2,24 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cek Stok & Harga</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cek Harga & Promo</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h2>🔍 Cari Produk</h2>
-  <input type="text" id="searchInput" placeholder="Masukkan nama produk...">
+  <h2>🔎 Cari Produk</h2>
+  <input type="text" id="searchInput" placeholder="Cari berdasarkan deskripsi...">
   <table>
     <thead>
       <tr>
-        <th>Nama Produk</th>
-        <th>Stok</th>
+        <th>PLU</th>
+        <th>Deskripsi</th>
         <th>Harga</th>
+        <th>Promo</th>
       </tr>
     </thead>
     <tbody id="dataTable">
-      <tr><td colspan="3">Loading data...</td></tr>
+      <tr><td colspan="4">Loading data...</td></tr>
     </tbody>
   </table>
   <script src="script.js"></script>
