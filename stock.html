@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock & Harga Checker</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    input { width: 100%; padding: 8px; margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h2>Cari Produk</h2>
+  <input type="text" id="search" placeholder="Masukkan nama produk..." onkeyup="filterData()">
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>Nama Produk</th>
+        <th>Stok</th>
+        <th>Harga</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      <!-- Data akan dimasukkan di sini -->
+    </tbody>
+  </table>
+
+  <script>
+    // Contoh data (bisa diganti load dari CSV/Excel)
+    const data = [
+      {nama: "Kopi ABC", stok: 25, harga: 12000},
+      {nama: "Teh Botol", stok: 10, harga: 8000},
+      {nama: "Air Mineral", stok: 50, harga: 4000}
+    ];
+
+    const tableBody = document.getElementById("tableBody");
+    function displayData(filtered = data) {
+      tableBody.innerHTML = "";
+      filtered.forEach(item => {
+        const row = `<tr>
+                      <td>${item.nama}</td>
+                      <td>${item.stok}</td>
+                      <td>Rp ${item.harga.toLocaleString()}</td>
+                    </tr>`;
+        tableBody.innerHTML += row;
+      });
+    }
+
+    function filterData() {
+      const keyword = document.getElementById("search").value.toLowerCase();
+      const filtered = data.filter(item => item.nama.toLowerCase().includes(keyword));
+      displayData(filtered);
+    }
+
+    displayData(); // Load awal
+  </script>
+</body>
+</html>
