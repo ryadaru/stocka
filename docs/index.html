@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>FHPIM - Cek Harga & Stok</title>
+  <title>FHPIM - Cek Harga, Stok & Barcode</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/@zxing/browser@latest"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -34,12 +35,13 @@
 
     .tab-button {
       flex: 1;
-      padding: 12px;
+      padding: 10px;
       text-align: center;
       background-color: white;
       border: 1px solid #1976d2;
       color: #1976d2;
       cursor: pointer;
+      font-size: 14px;
     }
 
     .tab-button.active {
@@ -83,11 +85,18 @@
       display: block;
       color: #0d47a1;
     }
+
+    #barcode-scanner {
+      width: 100%;
+      height: 300px;
+      background: #000;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
 
-<header>FHPIM - Cek Harga & Stok</header>
+<header>FHPIM - Cek Harga, Stok & Barcode</header>
 
 <div class="container">
   <input type="file" id="excelFile" accept=".csv, .xlsx, .xls" />
@@ -95,21 +104,31 @@
   <div class="tab-buttons">
     <div class="tab-button active" onclick="switchTab('hargaPromo')">Harga & Promo</div>
     <div class="tab-button" onclick="switchTab('stok')">Stok</div>
+    <div class="tab-button" onclick="switchTab('barcode')">Scan Barcode</div>
   </div>
 
+  <!-- Tab Harga & Promo -->
   <div class="tab-content active" id="tab-hargaPromo">
     <input type="text" id="searchHargaPromo" placeholder="Cari PLU atau Nama Produk" />
     <div class="result" id="resultHargaPromo"></div>
   </div>
 
+  <!-- Tab Stok -->
   <div class="tab-content" id="tab-stok">
     <input type="text" id="searchStok" placeholder="Cari PLU atau Nama Produk" />
     <div class="result" id="resultStok"></div>
+  </div>
+
+  <!-- Tab Barcode -->
+  <div class="tab-content" id="tab-barcode">
+    <div id="barcode-scanner"></div>
+    <div class="result" id="resultBarcode"></div>
   </div>
 </div>
 
 <script>
   let masterData = [];
+  let debounceTimer;
 
   document.getElementById('excelFile').addEventListener('change', function (e) {
     const file = e.target.files[0];
@@ -136,20 +155,20 @@
 
     document.querySelector(`.tab-button[onclick="switchTab('${tab}')"]`).classList.add("active");
     document.getElementById(`tab-${tab}`).classList.add("active");
+
+    if (tab === 'barcode') startScanner();
+    else stopScanner();
   }
 
   function debounce(func, delay) {
-    let timeout;
     return function () {
-      const context = this;
-      const args = arguments;
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func.apply(context, args), delay);
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => func.apply(this, arguments), delay);
     };
   }
 
-  function searchAndRender(keyword, containerId, renderFn) {
-    const resultBox = document.getElementById(containerId);
+  function searchData(keyword, resultBoxId, renderer) {
+    const resultBox = document.getElementById(resultBoxId);
     resultBox.innerHTML = "";
 
     if (!keyword || masterData.length === 0) return;
@@ -166,16 +185,15 @@
       filtered.forEach((item, index) => {
         const div = document.createElement("div");
         div.className = "item";
-        div.innerHTML = renderFn(item, index + 1);
+        div.innerHTML = renderer(item, index + 1);
         resultBox.appendChild(div);
       });
     }
   }
 
-  // Harga & Promo
-  const searchHargaPromoDebounced = debounce(function () {
+  const searchHargaPromoDebounced = debounce(() => {
     const keyword = document.getElementById("searchHargaPromo").value.toLowerCase();
-    searchAndRender(keyword, "resultHargaPromo", (item, i) => `
+    searchData(keyword, "resultHargaPromo", (item, i) => `
       <strong>${i}. ${item.description || "Tanpa Nama"}</strong>
       PLU: ${item.plu || "-"}<br>
       Harga: Rp${item.current_price || "0"}<br>
@@ -183,10 +201,9 @@
     `);
   }, 300);
 
-  // Stok
-  const searchStokDebounced = debounce(function () {
+  const searchStokDebounced = debounce(() => {
     const keyword = document.getElementById("searchStok").value.toLowerCase();
-    searchAndRender(keyword, "resultStok", (item, i) => `
+    searchData(keyword, "resultStok", (item, i) => `
       <strong>${i}. ${item.description || "Tanpa Nama"}</strong>
       PLU: ${item.plu || "-"}<br>
       Stok: ${item.stock !== undefined ? item.stock : "-"}
@@ -195,6 +212,64 @@
 
   document.getElementById("searchHargaPromo").addEventListener("input", searchHargaPromoDebounced);
   document.getElementById("searchStok").addEventListener("input", searchStokDebounced);
+
+  // Barcode scanner
+  let codeReader;
+
+  async function startScanner() {
+    const previewElem = document.getElementById('barcode-scanner');
+    const resultBox = document.getElementById('resultBarcode');
+    resultBox.innerHTML = "";
+
+    if (!codeReader) {
+      codeReader = new ZXing.BrowserBarcodeReader();
+    }
+
+    try {
+      const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+      if (devices.length === 0) {
+        previewElem.innerHTML = "<p>Tidak ada kamera terdeteksi.</p>";
+        return;
+      }
+
+      codeReader.decodeFromVideoDevice(devices[0].deviceId, 'barcode-scanner', (result, err) => {
+        if (result) {
+          const kode = result.getText();
+          showBarcodeResult(kode);
+        }
+      });
+    } catch (e) {
+      previewElem.innerHTML = "<p>Gagal mengakses kamera.</p>";
+    }
+  }
+
+  function stopScanner() {
+    if (codeReader) {
+      codeReader.reset();
+    }
+  }
+
+  function showBarcodeResult(plu) {
+    const resultBox = document.getElementById("resultBarcode");
+    resultBox.innerHTML = "";
+
+    const item = masterData.find(item => item.plu?.toString() === plu);
+    if (!item) {
+      resultBox.innerHTML = `<p>PLU "${plu}" tidak ditemukan.</p>`;
+      return;
+    }
+
+    const div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = `
+      <strong>${item.description || "Tanpa Nama"}</strong>
+      PLU: ${item.plu || "-"}<br>
+      Harga: Rp${item.current_price || "0"}<br>
+      Promo: ${item.promo || "-"}<br>
+      Stok: ${item.stock !== undefined ? item.stock : "-"}
+    `;
+    resultBox.appendChild(div);
+  }
 </script>
 
 </body>
