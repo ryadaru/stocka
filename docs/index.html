@@ -94,8 +94,6 @@
 <header>FHPIM - Cek Harga & Stok</header>
 
 <div class="container">
-  <p>Memuat data dari GitHub...</p>
-
   <div class="tab-buttons">
     <div class="tab-button active" onclick="switchTab('hargaPromo')">Harga & Promo</div>
     <div class="tab-button" onclick="switchTab('stok')">Stok</div>
@@ -107,15 +105,15 @@
   </div>
 
   <div class="tab-content" id="tab-stok">
-    <input type="text" id="searchStok" placeholder="Cari PLU atau Nama Produk" />
+    <input type="text" id="searchStok" placeholder="Cari Article, EAN, atau Nama Produk" />
     <div class="result" id="resultStok"></div>
   </div>
 </div>
 
 <script>
-  let masterData = [];
+  let hargaData = [];
+  let stokData = [];
 
-  // Konversi serial number Excel ke tanggal DD/MM/YYYY
   function excelDateToJSDate(serial) {
     const utc_days = Math.floor(serial - 25569);
     const utc_value = utc_days * 86400;
@@ -126,22 +124,29 @@
     return `${day}/${month}/${year}`;
   }
 
-  async function loadExcelFromGithub() {
+  async function loadExcel(file) {
+    const response = await fetch(file);
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    return XLSX.utils.sheet_to_json(worksheet);
+  }
+
+  async function loadData() {
     try {
-      const response = await fetch("data.xlsx");
-      const arrayBuffer = await response.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      masterData = XLSX.utils.sheet_to_json(worksheet);
-      alert("Data berhasil dimuat dari GitHub!");
+      [hargaData, stokData] = await Promise.all([
+        loadExcel("data.xlsx"),
+        loadExcel("data2.xls")
+      ]);
+      alert("Data berhasil dimuat!");
     } catch (err) {
-      alert("Gagal memuat data dari GitHub.");
+      alert("Gagal memuat data.");
       console.error("Error:", err);
     }
   }
 
-  loadExcelFromGithub();
+  loadData();
 
   function switchTab(tab) {
     const buttons = document.querySelectorAll(".tab-button");
@@ -164,16 +169,20 @@
     };
   }
 
-  function searchAndRender(keyword, containerId, renderFn) {
+  function searchAndRender(keyword, dataArray, containerId, renderFn) {
     const resultBox = document.getElementById(containerId);
     resultBox.innerHTML = "";
 
-    if (!keyword || masterData.length === 0) return;
+    if (!keyword || dataArray.length === 0) return;
 
-    const filtered = masterData.filter(item => {
-      const plu = (item.plu || "").toString().toLowerCase();
-      const desc = (item.description || "").toLowerCase();
-      return plu.includes(keyword) || desc.includes(keyword);
+    const filtered = dataArray.filter(item => {
+      const combined = [
+        item.plu || item.Article || "",
+        item.EAN || "",
+        item.description || item.Description || ""
+      ].join(" ").toLowerCase();
+
+      return combined.includes(keyword);
     });
 
     if (filtered.length === 0) {
@@ -190,7 +199,7 @@
 
   const searchHargaPromoDebounced = debounce(function () {
     const keyword = document.getElementById("searchHargaPromo").value.toLowerCase();
-    searchAndRender(keyword, "resultHargaPromo", (item, i) => {
+    searchAndRender(keyword, hargaData, "resultHargaPromo", (item, i) => {
       let start = item.start_date;
       let end = item.end_date;
 
@@ -198,8 +207,8 @@
       if (typeof end === "number") end = excelDateToJSDate(end);
 
       const now = new Date();
-      const startDateObj = new Date(start.split("/").reverse().join("-"));
-      const endDateObj = new Date(end.split("/").reverse().join("-"));
+      const startDateObj = new Date(start?.split("/").reverse().join("-"));
+      const endDateObj = new Date(end?.split("/").reverse().join("-"));
       const isInPromo = start && end && now >= startDateObj && now <= endDateObj;
       const promoLabel = item.promo && isInPromo ? item.promo : "Tidak Aktif";
 
@@ -215,10 +224,11 @@
 
   const searchStokDebounced = debounce(function () {
     const keyword = document.getElementById("searchStok").value.toLowerCase();
-    searchAndRender(keyword, "resultStok", (item, i) => `
-      <strong>${i}. ${item.description || "Tanpa Nama"}</strong>
-      PLU: ${item.plu || "-"}<br>
-      Stok: ${item.stock !== undefined ? item.stock : "-"}
+    searchAndRender(keyword, stokData, "resultStok", (item, i) => `
+      <strong>${i}. ${item.Description || "Tanpa Nama"}</strong>
+      Article: ${item.Article || "-"}<br>
+      EAN: ${item.EAN || "-"}<br>
+      Stok: ${item.Qty !== undefined ? item.Qty : "-"}
     `);
   }, 300);
 
