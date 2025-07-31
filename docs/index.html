@@ -9,81 +9,65 @@
     body {
       font-family: sans-serif;
       margin: 0;
-      background: #f4f4f4;
+      background: #fafafa;
       color: #333;
     }
-
     header {
-      background-color: #1976d2;
-      color: white;
+      background: #1976d2;
+      color: #fff;
       text-align: center;
-      padding: 15px;
-      font-size: 20px;
+      padding: 12px;
+      font-size: 18px;
     }
-
     .container {
       max-width: 480px;
       margin: auto;
       padding: 10px;
     }
-
     .tab-buttons {
       display: flex;
-      margin: 10px 0;
+      margin-bottom: 10px;
     }
-
     .tab-button {
       flex: 1;
-      padding: 12px;
-      text-align: center;
-      background-color: white;
+      padding: 10px;
+      background: white;
       border: 1px solid #1976d2;
       color: #1976d2;
+      font-size: 14px;
       cursor: pointer;
     }
-
     .tab-button.active {
-      background-color: #1976d2;
+      background: #1976d2;
       color: white;
     }
-
     .tab-content {
       display: none;
-      margin-top: 10px;
     }
-
     .tab-content.active {
       display: block;
     }
-
     input[type="text"] {
       width: 100%;
       padding: 10px;
-      margin: 10px 0;
       font-size: 16px;
       box-sizing: border-box;
-    }
-
-    .result {
-      margin-top: 15px;
-      padding: 10px;
-      background-color: #fff;
-      border-radius: 5px;
-      border: 1px solid #ddd;
-    }
-
-    .item {
       margin-bottom: 10px;
-      padding: 10px;
+    }
+    .result {
+      margin-top: 10px;
+    }
+    .item {
+      padding: 8px;
       background: #e3f2fd;
       border-radius: 4px;
+      margin-bottom: 6px;
+      font-size: 14px;
     }
-
     .item strong {
-      display: block;
       color: #0d47a1;
+      display: block;
     }
-
     small {
       color: #555;
     }
@@ -92,7 +76,6 @@
 <body>
 
 <header>FHPIM - Cek Harga & Stok</header>
-
 <div class="container">
   <div class="tab-buttons">
     <div class="tab-button active" onclick="switchTab('hargaPromo')">Harga & Promo</div>
@@ -100,14 +83,16 @@
   </div>
 
   <div class="tab-content active" id="tab-hargaPromo">
-    <input type="text" id="searchHargaPromo" placeholder="Cari PLU atau Nama Produk" />
+    <input type="text" id="searchHargaPromo" placeholder="Cari PLU atau Nama Produk">
     <div class="result" id="resultHargaPromo"></div>
   </div>
 
   <div class="tab-content" id="tab-stok">
-    <input type="text" id="searchStok" placeholder="Cari Article, EAN, atau Nama Produk" />
+    <input type="text" id="searchStok" placeholder="Cari Article, EAN, atau Nama Produk">
     <div class="result" id="resultStok"></div>
   </div>
+
+  <div id="statusInfo" style="font-size: 13px; color: green;"></div>
 </div>
 
 <script>
@@ -125,12 +110,11 @@
   }
 
   async function loadExcel(file) {
-    const response = await fetch(file);
-    const arrayBuffer = await response.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer, { type: "array" });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    return XLSX.utils.sheet_to_json(worksheet);
+    const res = await fetch(file);
+    const ab = await res.arrayBuffer();
+    const wb = XLSX.read(ab, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(sheet);
   }
 
   async function loadData() {
@@ -139,77 +123,69 @@
         loadExcel("data.xlsx"),
         loadExcel("data2.xls")
       ]);
-      alert("Data berhasil dimuat!");
+      document.getElementById("statusInfo").textContent = "✅ Data berhasil dimuat.";
     } catch (err) {
-      alert("Gagal memuat data.");
-      console.error("Error:", err);
+      document.getElementById("statusInfo").textContent = "❌ Gagal memuat data.";
+      console.error(err);
     }
   }
 
   loadData();
 
   function switchTab(tab) {
-    const buttons = document.querySelectorAll(".tab-button");
-    const tabs = document.querySelectorAll(".tab-content");
-
-    buttons.forEach(btn => btn.classList.remove("active"));
-    tabs.forEach(tabContent => tabContent.classList.remove("active"));
-
+    document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
+    document.querySelectorAll(".tab-content").forEach(content => content.classList.remove("active"));
     document.querySelector(`.tab-button[onclick="switchTab('${tab}')"]`).classList.add("active");
     document.getElementById(`tab-${tab}`).classList.add("active");
   }
 
-  function debounce(func, delay) {
-    let timeout;
-    return function () {
-      const context = this;
-      const args = arguments;
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func.apply(context, args), delay);
+  function debounce(fn, delay) {
+    let timer;
+    return function (...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
     };
   }
 
   function searchAndRender(keyword, dataArray, containerId, renderFn) {
-    const resultBox = document.getElementById(containerId);
-    resultBox.innerHTML = "";
+    const box = document.getElementById(containerId);
+    box.innerHTML = "";
 
     if (!keyword || dataArray.length === 0) return;
 
-    const filtered = dataArray.filter(item => {
+    const results = dataArray.filter(item => {
       const combined = [
         item.plu || item.Article || "",
         item.EAN || "",
         item.description || item.Description || ""
       ].join(" ").toLowerCase();
-
       return combined.includes(keyword);
-    });
+    }).slice(0, 30); // tampilkan max 30 hasil
 
-    if (filtered.length === 0) {
-      resultBox.innerHTML = "<p>Tidak ditemukan.</p>";
-    } else {
-      filtered.forEach((item, index) => {
-        const div = document.createElement("div");
-        div.className = "item";
-        div.innerHTML = renderFn(item, index + 1);
-        resultBox.appendChild(div);
-      });
+    if (results.length === 0) {
+      box.textContent = "Tidak ditemukan.";
+      return;
     }
+
+    const frag = document.createDocumentFragment();
+    results.forEach((item, i) => {
+      const div = document.createElement("div");
+      div.className = "item";
+      div.innerHTML = renderFn(item, i + 1);
+      frag.appendChild(div);
+    });
+    box.appendChild(frag);
   }
 
-  const searchHargaPromoDebounced = debounce(function () {
+  const searchHargaPromoDebounced = debounce(() => {
     const keyword = document.getElementById("searchHargaPromo").value.toLowerCase();
     searchAndRender(keyword, hargaData, "resultHargaPromo", (item, i) => {
-      let start = item.start_date;
-      let end = item.end_date;
-
+      let start = item.start_date, end = item.end_date;
       if (typeof start === "number") start = excelDateToJSDate(start);
       if (typeof end === "number") end = excelDateToJSDate(end);
 
       const now = new Date();
-      const startDateObj = new Date(start?.split("/").reverse().join("-"));
-      const endDateObj = new Date(end?.split("/").reverse().join("-"));
-      const isInPromo = start && end && now >= startDateObj && now <= endDateObj;
+      const isInPromo = start && end && now >= new Date(start.split("/").reverse().join("-")) && now <= new Date(end.split("/").reverse().join("-"));
       const promoLabel = item.promo && isInPromo ? item.promo : "Tidak Aktif";
 
       return `
@@ -222,7 +198,7 @@
     });
   }, 300);
 
-  const searchStokDebounced = debounce(function () {
+  const searchStokDebounced = debounce(() => {
     const keyword = document.getElementById("searchStok").value.toLowerCase();
     searchAndRender(keyword, stokData, "resultStok", (item, i) => `
       <strong>${i}. ${item.Description || "Tanpa Nama"}</strong>
